@@ -1,6 +1,9 @@
 
 import random
 import streamlit as st
+from PIL import Image
+import requests
+from io import BytesIO
 st.title('IR Project')
 
 input_string = st.text_input('Enter a string')
@@ -30,13 +33,16 @@ import requests
 from bs4 import BeautifulSoup
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
+from requests import Session
 
-nltk.download('vader_lexicon')
+session = Session()
+
+nltk.download('vader_lexicon', quiet = True)
 
 # 1. Web scraping/crawling
 def scrape_data(url):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
-    response = requests.get(url, headers=headers,cookies=cookies)
+    # headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
+    response = session.get(url, headers=headers,cookies=cookies)
     print(response.status_code)
     soup = BeautifulSoup(response.text, 'html.parser')
     return soup
@@ -56,9 +62,25 @@ def get_product_details(soup):
     return product_details
 
 # 3. Scrape reviews
-def get_reviews(soup):
-    reviews = soup.find_all('span', {'data-hook': 'review-body'})
-    return [review.text.strip() for review in reviews]
+def get_all_reviews(url):
+    reviews = []
+    headers = {
+                'User-Agent': specific_string(random.randint(1,999)),
+                'From': specific_string(random.randint(1,999))
+    }
+
+    response = requests.get(url, headers=headers, cookies = cookies)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    reviews.extend([review.text.strip() for review in soup.find_all('span', {'data-hook': 'review-body'})])
+    return reviews
+
+def scrape_reviews(url):
+    reviews_url = url.replace("/dp/", "/product-reviews/") + "?pageNumber=" + str(1)
+    st.write(reviews_url)
+    return get_all_reviews(reviews_url)
+
+
+
 
 # 4. NLP-based review analysis
 def analyze_reviews(reviews):
@@ -96,8 +118,8 @@ def search_amazon(product_name):
     # }
 
     # Send a GET request to the Amazon server
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
-    response = requests.get(url, headers=headers)
+    #headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
+    response = requests.get(url, cookies = cookies, headers=headers)
 
     # Parse the response text with BeautifulSoup
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -110,9 +132,9 @@ def search_amazon(product_name):
     return product_urls
 
 # Test the function
-product_urls = search_amazon('iphone')
-for url in product_urls:
-    print(url)
+# product_urls = search_amazon('iphone')
+# for url in product_urls:
+#     print(url)
 
 
 
@@ -145,17 +167,22 @@ def get_data(key):
     for index, element in enumerate(elements):
         item, url = get_item_from_star_element(element)
         image = item.find('img', class_='s-image')
-        st.image(image['src'], caption=url)  # Display the product image and URL
+        left_co, cent_co,last_co = st.columns(3)
+        with left_co:
+            st.image(image['src'], width=300)  # Display the product image and URL
+        with last_co:
+            st.write(url)
 
         soup = scrape_data(url)
         product_details = get_product_details(soup)
         st.write(product_details)  # Display the product details
 
-        description = get_about_this_item(soup)
-        st.write(f'About this item: {description}')  # Display the "About this item" section
+        # description = get_about_this_item(soup)
+        # st.write(f'About this item: {description}')  # Display the "About this item" section
 
-        reviews = get_reviews(soup)
+        reviews = scrape_reviews(url)
         st.write(reviews)  # Display the reviews
+        # reviews = scrape_reviews(url)
         analyze_reviews(reviews)
 
 if st.button('Find'):
