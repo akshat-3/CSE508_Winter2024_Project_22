@@ -1,12 +1,20 @@
 
 import random
-import streamlit as st
 from PIL import Image
+import re
 import requests
 from io import BytesIO
-st.title('IR Project')
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import nltk
+from requests import Session
+nltk.download('vader_lexicon', quiet = True)
 
-input_string = st.text_input('Enter a string')
+
+#initialize the session
+session = Session()
 
 def specific_string(length):
     sample_string = 'pqrstuvwxyaksdjhkasdlkjqluwoelkansldknc' # define the specific string
@@ -28,26 +36,15 @@ headers = {
             'From': specific_string(random.randint(1,999))
 }
 
-# Python
-import requests
-from bs4 import BeautifulSoup
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-import nltk
-from requests import Session
 
-session = Session()
+#WORKING FUNCTIONS
 
-nltk.download('vader_lexicon', quiet = True)
-
-# 1. Web scraping/crawling
 def scrape_data(url):
-    # headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
     response = session.get(url, headers=headers,cookies=cookies)
     print(response.status_code)
     soup = BeautifulSoup(response.text, 'html.parser')
     return soup
 
-# 2. Data collation
 def get_product_details(soup):
     product_details = {}
 
@@ -75,8 +72,10 @@ def get_all_reviews(url):
     return reviews
 
 def scrape_reviews(url):
-    reviews_url = url.replace("/dp/", "/product-reviews/") + "?pageNumber=" + str(1)
-    st.write(reviews_url)
+    response = requests.get(url, headers=headers, cookies=cookies)
+    final_url = response.url  # Get the final URL after all redirects
+    reviews_url = final_url.replace("/dp/", "/product-reviews/") + "?pageNumber=" + str(1)
+    # reviews_url = url.replace("/sspa/", "/product-reviews/") + "?pageNumber=" + str(1)
     return get_all_reviews(reviews_url)
 
 
@@ -85,10 +84,14 @@ def scrape_reviews(url):
 # 4. NLP-based review analysis
 def analyze_reviews(reviews):
     sentiment_analyzer = SentimentIntensityAnalyzer()
+    compound_scores = []
     for review in reviews:
         sentiment_score = sentiment_analyzer.polarity_scores(review)
-        print(f'Review: {review}\nSentiment Score: {sentiment_score}\n')
-
+        compound_scores.append(sentiment_score['compound'])
+    if len(compound_scores) == 0:
+        return 0
+    average_compound_score = sum(compound_scores) / len(compound_scores)
+    return average_compound_score
 
 def get_about_this_item(soup):
     about_item = soup.find('h1', {'class':'a-size-base-plus a-text-bold'}).text
@@ -97,12 +100,7 @@ def get_about_this_item(soup):
     return about_item, item_details
 
 
-# Example usage
-# url = 'https://www.amazon.in/Apple-iPhone-14-128GB-Midnight/dp/B0BDHX8Z63/ref=sr_1_10?dib=eyJ2IjoiMSJ9.eFa-TvbcC_zjCq_5PD2KOzq8FGFIoVfOOaz8akTXGASZDy9nMmG7fyQJcWpPDBvtZ_Q4w_WRrvCwz5nTc7cjiwnjiN969vgOAEeBN5IeypIRY6ZnKwtTdNRE5rEqe2XjmXtADrNke09Lb5INgZrsDLXgF72BwL5ou7M20nbSpiHtY9kO9J-9xgQYBUCEzxJam4p1t8E0dfv1ygBg0JlbtmMdnx4NcQr-9Bblv5Aa7OM.zSPJUgBI4O4UUlGQVih6CTAxgsEua7PamyEVoXpw1is&dib_tag=se&keywords=iphone&qid=1709754318&sr=8-10'
 
-
-import requests
-from bs4 import BeautifulSoup
 
 def search_amazon(product_name):
     # Replace spaces in the product name with '+'
@@ -146,6 +144,33 @@ def get_soup(params, page_number):
 def get_star_elements(soup):
     return soup.find_all(class_='a-icon-star-small')
 
+def get_price_and_image_url(url):
+    headers = {
+                'User-Agent': specific_string(random.randint(1,999)),
+                'From': specific_string(random.randint(1,999))
+    }
+
+    response = requests.get(url, headers=headers, cookies = cookies)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    # print(soup)
+    price_element = soup.find('span', {'class':'a-offscreen'})
+    if price_element is not None:
+        price = price_element.string.strip()    
+    script_element = soup.find('script', text=re.compile('var iUrl'))
+
+    # Extract the image URL from the script element
+    if script_element is not None:
+        match = re.search(r'var iUrl = "(.*?)";', script_element.string)
+        if match:
+            image_url = match.group(1)
+        else:
+            image_url = None
+    else:
+        image_url = None
+    return price, image_url
+
+
+
 
 
 def get_item_from_star_element(star_element):
@@ -156,34 +181,3 @@ def get_item_from_star_element(star_element):
     else:
         url = None
     return item, url
-
-def get_data(key):
-    params = {
-    'k': key,
-    }
-    page = get_soup(params, 1)
-
-    elements = get_star_elements(page)
-    for index, element in enumerate(elements):
-        item, url = get_item_from_star_element(element)
-        image = item.find('img', class_='s-image')
-        left_co, cent_co,last_co = st.columns(3)
-        with left_co:
-            st.image(image['src'], width=300)  # Display the product image and URL
-        with last_co:
-            st.write(url)
-
-        soup = scrape_data(url)
-        product_details = get_product_details(soup)
-        st.write(product_details)  # Display the product details
-
-        # description = get_about_this_item(soup)
-        # st.write(f'About this item: {description}')  # Display the "About this item" section
-
-        reviews = scrape_reviews(url)
-        st.write(reviews)  # Display the reviews
-        # reviews = scrape_reviews(url)
-        analyze_reviews(reviews)
-
-if st.button('Find'):
-    get_data(input_string)

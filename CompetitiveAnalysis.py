@@ -4,7 +4,7 @@ import ast
 import pandas as pd
 import random
 import pickle
-
+import copy
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -23,8 +23,8 @@ import math
 
 
 
-nltk.download('punkt')
-nltk.download('stopwords')
+nltk.download('punkt', quiet = True)
+nltk.download('stopwords', quiet = True)
 
 
 # preprocessing the image
@@ -58,6 +58,7 @@ def extract_image_features(model, image):
   h.remove()
   output = img_embedding.squeeze()
   output /= torch.linalg.vector_norm(output)
+  print("DONE")
   return output.tolist()
 
 
@@ -176,8 +177,8 @@ def get_cosine_similarity(vec1, vec2):
   return out
 
 
-def get_top_k_recommendations(input_text, product_dict, k = 3):
-   
+def get_top_k_recommendations(input_text, product_dict_input, k = 3):
+   product_dict = copy.deepcopy(product_dict_input)
    for i in product_dict:
       product_dict[i][0] = preprocess_text(product_dict[i][0])
       product_dict[i][1] = preprocess_text(product_dict[i][1])
@@ -225,7 +226,6 @@ def get_top_k_recommendations(input_text, product_dict, k = 3):
    sorted_sims = dict(sorted(cosine_sims_with_input.items(), key=lambda x: x[1], reverse=True))
 
    top_k_dict = {}
-
    count = 0
    for i in sorted_sims:
       if count >= k:
