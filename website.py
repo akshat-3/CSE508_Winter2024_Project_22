@@ -64,7 +64,8 @@ def get_data(key):
                 product_dict[index] = product_detail
                 all_detail_product[index] = all_detail
         
-        max_index, top_k_recommendations = get_top_k_recommendations(key, product_dict)
+        max_index, top_k_recommendations_dict = get_top_k_recommendations(key, product_dict)
+        top_k_recommendations = top_k_recommendations_dict.keys()
         print("returned")
         # reviews = scrape_reviews(product_dict[max_index][3])
         # average_compound_score = analyze_reviews(reviews)
@@ -106,6 +107,7 @@ def get_data(key):
                     with last_co:
                         st.markdown(f"##### {all_detail_product[index][0]}")
                         st.markdown(f"**Price:** {all_detail_product[index][1]}")
+                        st.markdown(f"Weighted Combined Similarity Score(Normalized): {top_k_recommendations_dict[index]:.2f}")
                         st.markdown(f"**Average sentiment score:** {all_detail_product[index][4]:.2f}")
                         st.markdown(f"**Overall sentiment:** {'positive' if all_detail_product[index][4] > 0 else 'negative' if all_detail_product[index][4] < 0 else 'neutral'}")
                     with st.expander("About the Product"):

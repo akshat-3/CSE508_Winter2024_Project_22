@@ -170,11 +170,16 @@ def get_idf_scores(product_dict):
    return final_idf
 
 def get_cosine_similarity(vec1, vec2):
-  np1 = np.array(vec1)
-  np2 = np.array(vec2)
-
-  out = np.dot(np1, np2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
-  return out
+   np1 = np.array(vec1)
+   np2 = np.array(vec2)
+   
+   out = np.dot(np1, np2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+   if out == np.nan:
+      print(np1)
+      print(np2)
+      print(vec1)
+      print(vec2)
+   return out
 
 
 def get_top_k_recommendations(input_text, product_dict_input, k = 3):
@@ -228,6 +233,12 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
          description_sim = get_cosine_similarity(tf_idf_vectors[max_index][1], tf_idf_vectors[i][1])
          cosine_sims_with_input[i] = 0.7*image_sim + 0.5*description_sim + 0.2*title_sim
    
+   #normalize the cosine similarity
+   max_cosine_sim = max(cosine_sims_with_input.values())
+   for i in cosine_sims_with_input:
+      cosine_sims_with_input[i] /= max_cosine_sim
+         
+   
    sorted_sims = dict(sorted(cosine_sims_with_input.items(), key=lambda x: x[1], reverse=True))
 
    top_k_dict = {}
@@ -237,4 +248,4 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
          break
       top_k_dict[i] = sorted_sims[i]
       count += 1
-   return max_index, top_k_dict.keys()
+   return max_index, top_k_dict
