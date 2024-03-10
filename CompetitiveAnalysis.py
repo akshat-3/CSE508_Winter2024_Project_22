@@ -179,11 +179,16 @@ def get_cosine_similarity(vec1, vec2):
 
 def get_top_k_recommendations(input_text, product_dict_input, k = 3):
    product_dict = copy.deepcopy(product_dict_input)
+   invalid = []
    for i in product_dict:
-      product_dict[i][0] = preprocess_text(product_dict[i][0])
-      product_dict[i][1] = preprocess_text(product_dict[i][1])
-      product_dict[i][2] = preprocess_image(product_dict[i][2])
-   
+      try:
+         product_dict[i][0] = preprocess_text(product_dict[i][0])
+         product_dict[i][1] = preprocess_text(product_dict[i][1])
+         product_dict[i][2] = preprocess_image(product_dict[i][2])
+      except:
+         invalid.append(i)
+   for i in invalid:
+      del product_dict[i]
    
 
    idf_scores = get_idf_scores(product_dict)

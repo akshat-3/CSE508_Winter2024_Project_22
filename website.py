@@ -15,24 +15,31 @@ from io import BytesIO
 import concurrent.futures
 
 def process_element(index, element):
-    try:
-        item, url = get_item_from_star_element(element)
-        image = item.find('img', class_='s-image')
-        response = requests.get(image['src'])
-        img_pil = Image.open(BytesIO(response.content))
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            item, url = get_item_from_star_element(element)
+            image = item.find('img', class_='s-image')
+            response = requests.get(image['src'])
+            img_pil = Image.open(BytesIO(response.content))
 
-        soup = scrape_data(url)
-        product_details = get_product_details(soup)
+            soup = scrape_data(url)
+            product_details = get_product_details(soup)
 
-        description = get_about_this_item(soup)
+            description = get_about_this_item(soup)
 
-        reviews = scrape_reviews(url)
-        average_compound_score = analyze_reviews(reviews)
-        product_detail = [product_details['name'], " ".join(description[1]), img_pil, url]
-        all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src']]
-        return index, product_detail, all_detail
-    except:
-        return index, [], []
+            reviews = scrape_reviews(url)
+            average_compound_score = analyze_reviews(reviews)
+            product_detail = [product_details['name'], " ".join(description[1]), img_pil, url]
+            all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src']]
+            return index, product_detail, all_detail
+        except:
+            if attempt < max_retries:  # i is zero indexed
+                max_retries -= 1
+                time.sleep(2)  # wait for 2 seconds before trying again
+                continue
+            else:
+                return index, [], []
     
 def get_data(key):
     with st.spinner('Searching for products...'):
@@ -56,6 +63,7 @@ def get_data(key):
                 index, product_detail, all_detail = future.result()
                 product_dict[index] = product_detail
                 all_detail_product[index] = all_detail
+        
         max_index, top_k_recommendations = get_top_k_recommendations(key, product_dict)
         print("returned")
         # reviews = scrape_reviews(product_dict[max_index][3])
