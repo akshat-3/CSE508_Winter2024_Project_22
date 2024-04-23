@@ -30,8 +30,8 @@ Understanding market dynamics, analysing competitor products, and identifying ef
 - Average Rating Predictor: https://drive.google.com/file/d/1-7q2HAwk_QBtkcA1qreAAd-eUPHPC_ka/view?usp=sharing
 - Average Sentiment Predictor: https://drive.google.com/file/d/1NOLjAaXVfeYszcmCavBpJvlNklxJ7Uur/view?usp=sharing
 
-  **Youtube Video Link**
-  
+ **Youtube Video Link**
+ https://www.youtube.com/watch?v=0CLA-NqbC9s 
 
 **Team Members:**
 
