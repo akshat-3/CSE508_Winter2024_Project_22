@@ -1,6 +1,6 @@
 from utils_amazon import *
 import utils_flipkart
-# from evaluation_metrics import evaluate_sentiment, evaluate_similarity
+from evaluation_metrics import evaluate_sentiment, evaluate_similarity
 from CompetitiveAnalysis import *
 import streamlit as st
 import time
@@ -226,11 +226,11 @@ def get_data(key):
         for i in all_detail_product:
             star_rating_dict[i] = all_detail_product[i][10]
 
-        # evaluate_sentiment(vader_score_dict, star_rating_dict)
+        evaluate_sentiment(vader_score_dict, star_rating_dict)
         max_index, top_k_recommendations_dict = get_top_k_recommendations(key, product_dict)
         top_k_recommendations = top_k_recommendations_dict.keys()
         print("returned")
-        # evaluate_similarity(product_dict, list(top_k_recommendations_dict.keys()), max_index)
+        evaluate_similarity(product_dict, list(top_k_recommendations_dict.keys()), max_index)
 
         # reviews = scrape_reviews(product_dict[max_index][3])
         # average_compound_score = analyze_reviews(reviews)
