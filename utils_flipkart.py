@@ -43,11 +43,19 @@ def get_rating(soup):
     return rating.text.strip() if rating else "No rating found"
 
 def get_description(soup):
-    description = soup.find_all('div', {'class':'yN+eNk w9jEaj'})
-    result = []
-    for desc in description:
-        result.append(desc.text.strip())
-    return result
+    # description = soup.find_all('div', {'class':'yN+eNk w9jEaj'})
+    # result = []
+    # for desc in description:
+    #     result.append(desc.text.strip())
+    # return result
+    description_div = soup.find('div', {'class': 'Xbd0Sd'})
+    p_element = description_div.find_all('p')
+    description = []
+    for p in p_element:
+        description.append(p.text)
+    description = description[0].split('.') if description else "No description found"
+    description = description[0:-1]
+    return description
 
 def get_image_url(soup):
     image = soup.find('img', {'class': '_0DkuPH'})
@@ -87,18 +95,31 @@ def get_count_reviews(soup):
 def get_average_rating(soup):
     rating = soup.find('div', {'class':'XQDdHH'})
     return rating.text.strip() if rating else "0"
+def get_title(soup):
+    title = soup.find('span', {'class':'B_NuCI'})
+    return title.text.strip() if title else "No title found"
+def get_price(soup):
+    price = soup.find('div', {'class':'_30jeq3 _16Jk6d'})
+    return price.text.strip() if price else "No price found"
 
 def get_product_data(url):
     soup = scrape_data(url)
+    title = get_title(soup)
+    price = get_price(soup)
+    link = url
     rating = get_rating(soup)
     description = get_description(soup)
     image_url = get_image_url(soup)
     reviews_url = generate_reviews_url(url)
     reviews = get_all_reviews(reviews_url)
+    reviews = clean_reviews(reviews)
     count_reviews = get_count_reviews(soup)
     average_rating = get_average_rating(soup)
 
     return {
+        "title": title,
+        "price": price,
+        "link": link,
         "reviews": reviews,
         "rating": rating,
         "description": description,
@@ -106,6 +127,20 @@ def get_product_data(url):
         "count_reviews": count_reviews,
         "average_rating": average_rating
     }
+
+def clean_reviews(reviews):
+    cleaned_reviews = []
+    for review in reviews:
+        # review = review.replace('\n', ' ')
+        # review = review.replace('\t', ' ')
+        # review = review.replace('\r', ' ')
+        # review = review.replace('  ', ' ')
+        parts = review.split("READ MORE")
+        review = parts[0]
+        rating = review[0]
+        review = rating + ' stars: ' + review[1:]
+        cleaned_reviews.append(review)
+    return cleaned_reviews
 
 def get_data(key):
     url_flip = 'https://www.flipkart.com/search?q=' + str(
@@ -172,9 +207,11 @@ def get_data(key):
                     "rating": product_data["rating"],
                     "description": product_data["description"],
                     "image_url": product_data["image_url"],
-                    "reviews": product_data["reviews"]
+                    "reviews": product_data["reviews"],
+                    "count_reviews": product_data["count_reviews"],
+                    "average_rating": product_data["average_rating"]
                 }
-            print("URL",products[i]['image_url'])
+            # print("URL",products[i]['image_url'])
             i += 1
             if i == 10:
                 break
