@@ -26,6 +26,10 @@ Understanding market dynamics, analysing competitor products, and identifying ef
 - Flipkart Web Scraper: From Scratch
 - EBay Web Scraper: https://github.com/bilalahhmedd/ebay-products-scraper
 
+**Model Pickle Files**
+- Average Rating Predictor: https://drive.google.com/file/d/1-7q2HAwk_QBtkcA1qreAAd-eUPHPC_ka/view?usp=sharing
+- Average Sentiment Predictor: https://drive.google.com/file/d/1NOLjAaXVfeYszcmCavBpJvlNklxJ7Uur/view?usp=sharing
+
 **Team Members:**
 
 - Aditya Nangia
