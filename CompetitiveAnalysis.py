@@ -152,7 +152,7 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 10):
          image_sim = get_cosine_similarity(image_embeddings[max_index], image_embeddings[i])
          title_sim = get_cosine_similarity(text_embeddings[max_index][0], text_embeddings[i][0])
          description_sim = get_cosine_similarity(text_embeddings[max_index][1], text_embeddings[i][1])
-         cosine_sims_with_input[i] = 0.7*image_sim + 0.5*description_sim + 0.2*title_sim
+         cosine_sims_with_input[i] = 0.8*image_sim + 0.2*description_sim + 0.3*title_sim
    
    #normalize the cosine similarity
    max_cosine_sim = max(cosine_sims_with_input.values())

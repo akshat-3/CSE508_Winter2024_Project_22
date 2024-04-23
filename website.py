@@ -166,6 +166,12 @@ def get_data(key):
 
             st.markdown(f"## {all_detail_product[max_index][0]}")
             st.markdown(f"### Price: {all_detail_product[max_index][1]}")
+            if all_detail_product[max_index][9] == None:
+                st.markdown(f"*Product Sales: Not Available*")
+            else:
+                st.markdown(f"*Product Sales: {all_detail_product[max_index][9]}*+ bought in the past month")            
+            st.markdown(f"Average Rating on Website: {all_detail_product[max_index][10]}")
+            st.markdown(f"Count of Total Reviews: {all_detail_product[max_index][11]}")
             st.markdown(f"### Average sentiment score: {all_detail_product[max_index][4]:.2f}")
             st.markdown(f"### Overall sentiment: {'positive' if all_detail_product[max_index][4] > 0 else 'negative' if all_detail_product[max_index][4] < 0 else 'neutral'}")
             with st.expander("About the Product"):
