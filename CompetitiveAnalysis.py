@@ -1,16 +1,10 @@
-from PIL import Image, ImageOps, ImageEnhance
-import ast
+from PIL import Image, ImageEnhance
 
 import pandas as pd
-import random
-import pickle
 import copy
-import torch
-import torch.nn as nn
-import torchvision.models as models
-import torchvision.transforms as transforms
-from torch.autograd import Variable
 
+
+import torch
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -18,14 +12,21 @@ import string
 from nltk.stem import PorterStemmer
 
 import numpy as np
+from transformers import AutoProcessor, CLIPModel
+from sentence_transformers import SentenceTransformer
 
-import math
 
+
+TextModel = SentenceTransformer('bert-base-nli-mean-tokens')
 
 
 nltk.download('punkt', quiet = True)
 nltk.download('stopwords', quiet = True)
 
+
+device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
+processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ImageModel = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 
 # preprocessing the image
 def preprocess_image(image):
@@ -39,27 +40,12 @@ def preprocess_image(image):
   return image
 
 # Extracting image features
-def extract_image_features(model, image):
-  scaler = transforms.Resize((224, 224))
-  normalize = transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
-  to_tensor = transforms.ToTensor()
-  img_transformed = Variable(normalize(to_tensor(scaler(image))).unsqueeze(0))
-
-  layer = model._modules.get('avgpool')
-  model.eval()
-
-  img_embedding = torch.zeros(1, 512, 1, 1)
-
-  def copy_embedding(m, i, o):
-    img_embedding.copy_(o.data)
-
-  h = layer.register_forward_hook(copy_embedding)
-  model(img_transformed)
-  h.remove()
-  output = img_embedding.squeeze()
-  output /= torch.linalg.vector_norm(output)
-  print("DONE")
-  return output.tolist()
+def extract_image_features(image):
+   with torch.no_grad():
+      inputs = processor(images=image, return_tensors="pt").to(device)
+      image_features = ImageModel.get_image_features(**inputs)
+   print("DONE")
+   return image_features.tolist()[0]
 
 
 
@@ -108,66 +94,9 @@ def preprocess_text(sent):
       temp.append(j)
   sent = temp.copy()
 
-  return sent
 
+  return " ".join(sent)
 
-def get_tf_idf(input_text, idf_counts, total_vocab):
-   tf_idf_vector = []
-
-   input_tf = {}
-
-   for word in input_text:
-      if word not in input_tf:
-         input_tf[word] = 0
-      input_tf[word] += 1
-   for word in total_vocab:
-      if word not in input_tf:
-         tf_idf_vector.append(0)
-      else:
-         tf_idf_vector.append((input_tf[word] / len(input_tf))*(math.log2(len(total_vocab) / idf_counts[word])))
-    
-   return tf_idf_vector 
-
-def get_total_vocab(product_dict):
-   total_vocab = []
-
-   for i in product_dict:
-      name = product_dict[i][0]
-      description = product_dict[i][1]
-
-      for word in name:
-         if word not in total_vocab:
-            total_vocab.append(word)
-      
-      for word in description:
-         if word not in total_vocab:
-            total_vocab.append(word)
-   return total_vocab
-
-def get_idf_scores(product_dict):
-   idf_counts = {}
-   
-
-   for i in product_dict:
-    name = product_dict[i][0]
-    description = product_dict[i][1]
-    for word in name:
-         if word not in idf_counts:
-            idf_counts[word] = []
-         
-         if i not in idf_counts[word]:
-            idf_counts[word].append(i)
-    for word in description:
-         if word not in idf_counts:
-            idf_counts[word] = []
-         
-         if i not in idf_counts[word]:
-            idf_counts[word].append(i)
-    
-   final_idf = {}
-   for i in idf_counts:
-      final_idf[i] = len(idf_counts[i])
-   return final_idf
 
 def get_cosine_similarity(vec1, vec2):
    np1 = np.array(vec1)
@@ -195,32 +124,24 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
    for i in invalid:
       del product_dict[i]
    
-
-   idf_scores = get_idf_scores(product_dict)
-   
-   total_vocab = get_total_vocab(product_dict)
-   tf_idf_vectors = {}
+   text_embeddings = {}
 
    processed_input = preprocess_text(input_text)
 
-   for i in product_dict:
-      tf_idf_vectors[i] = [get_tf_idf(product_dict[i][0], idf_scores, total_vocab), get_tf_idf(product_dict[i][1], idf_scores, total_vocab)]
-   
-   model = models.resnet18(pretrained=True)
 
+   for i in product_dict:
+      text_embeddings[i] = [list(TextModel.encode(product_dict[i][0])), list(TextModel.encode(product_dict[i][1]))]
    image_embeddings = {}
 
    for i in product_dict:
-      image_embeddings[i] = extract_image_features(model, product_dict[i][2])
-   
-   cosine_similarity_text = {}
+      image_embeddings[i] = extract_image_features(product_dict[i][2])
 
-   input_tf_idf = get_tf_idf(processed_input, idf_scores, total_vocab)
+   input_embedding = TextModel.encode(processed_input)
 
    max_cosine_sim = -100
    max_index = 0
    for i in product_dict:
-      cosine_sim = get_cosine_similarity(input_tf_idf, tf_idf_vectors[i][0])
+      cosine_sim = get_cosine_similarity(input_embedding, text_embeddings[i][0])
       if cosine_sim > max_cosine_sim:
          max_cosine_sim = cosine_sim
          max_index = i
@@ -229,8 +150,8 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
    for i in product_dict:
       if i != max_index:
          image_sim = get_cosine_similarity(image_embeddings[max_index], image_embeddings[i])
-         title_sim = get_cosine_similarity(tf_idf_vectors[max_index][0], tf_idf_vectors[i][0])
-         description_sim = get_cosine_similarity(tf_idf_vectors[max_index][1], tf_idf_vectors[i][1])
+         title_sim = get_cosine_similarity(text_embeddings[max_index][0], text_embeddings[i][0])
+         description_sim = get_cosine_similarity(text_embeddings[max_index][1], text_embeddings[i][1])
          cosine_sims_with_input[i] = 0.7*image_sim + 0.5*description_sim + 0.2*title_sim
    
    #normalize the cosine similarity
@@ -249,3 +170,10 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
       top_k_dict[i] = sorted_sims[i]
       count += 1
    return max_index, top_k_dict
+
+
+title = "Redmi phone"
+text = "This is a great product"
+image = Image.open("c:/Users/saksham/Pictures/nigger.png")
+img2 = Image.open("C:/Users/saksham/Pictures/proof.jpg")
+print(get_top_k_recommendations("This is an iphone", {0: [title, text, image], 1: ["hello world this in a new item", "I do not like hello phone", img2]}))
