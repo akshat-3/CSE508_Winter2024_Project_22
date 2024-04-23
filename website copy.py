@@ -245,6 +245,7 @@ def get_data(key):
                     with st.expander("Show Top Reviews"):
                         st.dataframe(pd.DataFrame(all_detail_product[index][5], columns=['Review']))
     except Exception as e:
+        raise(e)
         print(e)
 
     if not os.path.isfile("all_detail_product.pkl") or os.stat("all_detail_product.pkl").st_size == 0 or not os.path.isfile("product_dict.pkl") or os.stat("product_dict.pkl").st_size == 0:
@@ -287,6 +288,7 @@ def get_seller_amazon_product_from_url(url):
         all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src'], 'Amazon', product_details['bought'], product_details['average_rating'], product_details['total_reviews']]
         return product_detail, all_detail
     except Exception as e:
+        raise(e)
         print(e)
         return {}
 def get_seller_flipkart_product_from_url(url):
@@ -308,6 +310,7 @@ def get_seller_flipkart_product_from_url(url):
         print(product_detail_flipkart, all_detail_flipkart)
         return product_detail_flipkart, all_detail_flipkart
     except Exception as e:
+        raise(e)
         print(e)
         return {}
     

@@ -28,9 +28,9 @@ def get_rouge_score(text1, text2):
 
 
 def get_vader_label(vader_score):
-    if vader_score >= 0.5:
+    if vader_score >= 0.25:
         return 2
-    elif vader_score >= -0.5:
+    elif vader_score >= -0.25:
         return 1
     return 0
 
@@ -50,7 +50,7 @@ def evaluate_sentiment(vader_sentiments, star_ratings):
         predictions.append(get_vader_label(vader_sentiments[i]))
         labels.append(get_star_rating_label(star_ratings[i]))
     print("Evaluating sentiment scores")    
-    print(classification_report(labels, predictions, target_names=["Negative", "Neutral", "Positive"]))
+    print(classification_report(labels, predictions))
         
 
 def evaluate_similarity(product_dict, top_product_ids, input_id):

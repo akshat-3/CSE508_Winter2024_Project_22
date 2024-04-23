@@ -46,6 +46,7 @@ def scrape_data(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         return soup
     except Exception as e:
+        raise e
         print(e)
         return BeautifulSoup()
 
@@ -95,6 +96,7 @@ def get_product_details(soup):
         # product_details['total_reviews'] = 0
         # return product_details
     except Exception as e:
+        raise(e)
         print(e)
         return product_details
     
@@ -202,6 +204,7 @@ def get_soup(params, page_number):
         response = requests.get('https://www.amazon.in/s', params=params, cookies=cookies, headers=headers)
         return BeautifulSoup(response.text, 'html.parser')
     except Exception as e:
+        raise(e)
         print(e)
         return BeautifulSoup()
     

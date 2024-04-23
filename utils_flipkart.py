@@ -95,11 +95,18 @@ def get_count_reviews(soup):
 def get_average_rating(soup):
     rating = soup.find('div', {'class':'XQDdHH'})
     return rating.text.strip() if rating else "0"
+
 def get_title(soup):
-    title = soup.find('span', {'class':'B_NuCI'})
-    return title.text.strip() if title else "No title found"
+    try:
+        div_element = soup.find('div', class_='slAVV4 qt3Pmj')
+        # Find the a element within the div element and get the title attribute
+        title = div_element.find('a')['title']
+        return title
+    except:
+        return "No title found"
+    
 def get_price(soup):
-    price = soup.find('div', {'class':'_30jeq3 _16Jk6d'})
+    price = soup.find('div', {'class':'Nx9bqj'})
     return price.text.strip() if price else "No price found"
 
 def get_product_data(url):

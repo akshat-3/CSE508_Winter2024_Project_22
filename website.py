@@ -1,6 +1,6 @@
 from utils_amazon import *
 import utils_flipkart
-from evaluation_metrics import evaluate_sentiment, evaluate_similarity
+# from evaluation_metrics import evaluate_sentiment, evaluate_similarity
 from CompetitiveAnalysis import *
 import streamlit as st
 import time
@@ -38,6 +38,7 @@ def get_seller_amazon_product_from_url(url):
         all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src'], 'Amazon', product_details['bought'], product_details['average_rating'], product_details['total_reviews']]
         return product_detail, all_detail
     except Exception as e:
+        raise(e)
         print(e)
         return {}
 
@@ -60,9 +61,10 @@ def get_seller_flipkart_product_from_url(url):
                     }
         product_detail_flipkart, all_detail_flipkart = process_element_flipkart([product])
         print("hello3")
-        print(product_detail_flipkart, all_detail_flipkart)
+        # print(product_detail_flipkart, all_detail_flipkart)
         return product_detail_flipkart, all_detail_flipkart
     except Exception as e:
+        raise(e)
         print(e)
         return {}
 
@@ -181,30 +183,35 @@ def get_data(key):
 
 
         product_dict_user, all_detail_product_user = get_seller_amazon_product_from_url(user_url) if user_platform == 'Amazon' else get_seller_flipkart_product_from_url(user_url)
-
+        if user_platform == 'Amazon':
+            product_dict_user = {0: product_dict_user}
+            all_detail_product_user = {0: all_detail_product_user}
         product_dict = {}
         all_detail_product = {}
         #merge one amazon then one flipkart
         iterator = 0
         for i in range(len(product_dict_amazon)):
-            product_dict[iterator] = product_dict_amazon[i]
-            all_detail_product[iterator] = all_detail_product_amazon[i]
-            iterator +=2
+            if product_dict_amazon[i] != []:
+                product_dict[iterator] = product_dict_amazon[i]
+                all_detail_product[iterator] = all_detail_product_amazon[i]
+                iterator +=2
         
         iterator = 1
         for i in range(len(product_dict_flipkart)):
-            product_dict[iterator] = product_dict_flipkart[i+len(product_dict_amazon)]
-            all_detail_product[iterator] = all_detail_product_flipkart[i+len(product_dict_amazon)]
-            iterator +=2
+            if product_dict_flipkart[i+len(product_dict_amazon)] != []:
+                product_dict[iterator] = product_dict_flipkart[i+len(product_dict_amazon)]
+                all_detail_product[iterator] = all_detail_product_flipkart[i+len(product_dict_amazon)]
+                iterator +=2
 
-        for i in range(len(product_dict)):
-            if product_dict[i]['title'] == product_dict_user[0]['title']:
+        for i in product_dict.keys():
+            if product_dict[i][0] == product_dict_user[0][0]:
                 del product_dict[i]
                 del all_detail_product[i]
                 break
 
         # product_dict = {**product_dict_amazon, **product_dict_flipkart}
         print("total", len(product_dict))
+        print("hello",all_detail_product.keys())
         # all_detail_product = {**all_detail_product_amazon, **all_detail_product_flipkart}
 
         # print(product_dict)
@@ -212,17 +219,18 @@ def get_data(key):
 
         vader_score_dict = {}
         for i in all_detail_product:
+            print(all_detail_product[i])
             vader_score_dict[i] = all_detail_product[i][4]
         
         star_rating_dict = {}
         for i in all_detail_product:
             star_rating_dict[i] = all_detail_product[i][10]
 
-        evaluate_sentiment(vader_score_dict, star_rating_dict)
+        # evaluate_sentiment(vader_score_dict, star_rating_dict)
         max_index, top_k_recommendations_dict = get_top_k_recommendations(key, product_dict)
         top_k_recommendations = top_k_recommendations_dict.keys()
         print("returned")
-        evaluate_similarity(product_dict, list(top_k_recommendations_dict.keys()), max_index)
+        # evaluate_similarity(product_dict, list(top_k_recommendations_dict.keys()), max_index)
 
         # reviews = scrape_reviews(product_dict[max_index][3])
         # average_compound_score = analyze_reviews(reviews)
@@ -273,10 +281,18 @@ def get_data(key):
             st.markdown(f"Count of Total Reviews: {all_detail_product_user[0][11]}")
             st.markdown(f"### Average sentiment score: {all_detail_product_user[0][4]:.2f}")
             st.markdown(f"### Overall sentiment: {'positive' if all_detail_product_user[0][4] > 0 else 'negative' if all_detail_product_user[0][4] < 0 else 'neutral'}")
-            with st.expander("About the Product"):
-                st.write(pd.DataFrame(all_detail_product_user[0][3], columns=['About the Product']))
-            with st.expander("Show Top Reviews"):
-                st.dataframe(pd.DataFrame(all_detail_product_user[0][5], columns=['Review']))
+            try:
+                with st.expander("About the Product"):
+                    st.write(pd.DataFrame(all_detail_product_user[0][3], columns=['About the Product']))
+            except:
+                with st.expander("About the Product"):
+                    st.write("No description found")
+            try:
+                with st.expander("Show Top Reviews"):
+                    st.dataframe(pd.DataFrame(all_detail_product_user[0][5], columns=['Review']))
+            except:
+                with st.expander("Show Top Reviews"):
+                    st.write("No reviews found")
         except:
             st.write("No product found")
 
@@ -309,11 +325,20 @@ def get_data(key):
                         st.markdown(f"Count of Total Reviews: {all_detail_product[index][11]}")
                         st.markdown(f"**Average sentiment score:** {all_detail_product[index][4]:.2f}")
                         st.markdown(f"**Overall sentiment:** {'positive' if all_detail_product[index][4] > 0 else 'negative' if all_detail_product[index][4] < 0 else 'neutral'}")
-                    with st.expander("About the Product"):
-                        st.write(pd.DataFrame(all_detail_product[index][3], columns=['About the Product']))
-                    with st.expander("Show Top Reviews"):
-                        st.dataframe(pd.DataFrame(all_detail_product[index][5], columns=['Review']))
+                    try:
+                        with st.expander("About the Product"):
+                            st.write(pd.DataFrame(all_detail_product[index][3], columns=['About the Product']))
+                    except:
+                        with st.expander("About the Product"):
+                            st.write("No description found")
+                    try:
+                        with st.expander("Show Top Reviews"):
+                            st.dataframe(pd.DataFrame(all_detail_product[index][5], columns=['Review']))
+                    except:
+                        with st.expander("Show Top Reviews"):
+                            st.write("No reviews found")
     except Exception as e:
+        raise(e)
         print(e)
 
     # if not os.path.isfile("all_detail_product.pkl") or os.stat("all_detail_product.pkl").st_size == 0 or not os.path.isfile("product_dict.pkl") or os.stat("product_dict.pkl").st_size == 0:
