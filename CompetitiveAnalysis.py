@@ -170,10 +170,3 @@ def get_top_k_recommendations(input_text, product_dict_input, k = 3):
       top_k_dict[i] = sorted_sims[i]
       count += 1
    return max_index, top_k_dict
-
-
-title = "Redmi phone"
-text = "This is a great product"
-image = Image.open("c:/Users/saksham/Pictures/nigger.png")
-img2 = Image.open("C:/Users/saksham/Pictures/proof.jpg")
-print(get_top_k_recommendations("This is an iphone", {0: [title, text, image], 1: ["hello world this in a new item", "I do not like hello phone", img2]}))
