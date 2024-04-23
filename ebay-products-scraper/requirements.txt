@@ -1,4 +1,0 @@
-scrapy
-pandas
-json
-numpy

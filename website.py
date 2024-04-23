@@ -1,11 +1,14 @@
-from utils import *
+from utils_amazon import *
+import utils_flipkart
+
 from CompetitiveAnalysis import *
 import streamlit as st
 import time
+import pickle
 
 st.markdown('### Group 22 IR Project')
 st.markdown('#### E-Commerce Competitive Analysis System')
-st.markdown('Search for a product on Amazon')
+st.markdown('Search for a product on Amazon and Flipkart')
 key = st.text_input('Enter the product name')
 
 from concurrent.futures import ThreadPoolExecutor
@@ -31,7 +34,7 @@ def process_element(index, element):
             reviews = scrape_reviews(url)
             average_compound_score = analyze_reviews(reviews)
             product_detail = [product_details['name'], " ".join(description[1]), img_pil, url]
-            all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src']]
+            all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src'], 'Amazon', product_details['bought'], product_details['average_rating'], product_details['total_reviews']]
             return index, product_detail, all_detail
         except:
             if attempt < max_retries:  # i is zero indexed
@@ -40,7 +43,46 @@ def process_element(index, element):
                 continue
             else:
                 return index, [], []
-    
+def process_element_flipkart(data):
+    # product_detail = [product_details['name'], " ".join(description[1]), img_pil, url]
+    # all_detail = [product_details['name'], product_details['price'], description[0], description[1], average_compound_score, reviews,url, image['src']]
+    products_detail = {}
+    all_products_detail = {}
+    print("lengthhh", len(data))
+    for i in range(len(data)):
+        product_detail = []
+        all_detail = []
+        product_detail.append(data[i]['title'])
+        product_detail.append(" ".join(data[i]['description']))
+        try:
+            response = requests.get(data[i]['image_url'])
+            img_pil = Image.open(BytesIO(response.content))
+        except:
+            img_pil = None
+        product_detail.append(img_pil)
+        product_detail.append(data[i]['link'])
+        products_detail[i] = product_detail
+        
+        all_detail.append(data[i]['title'])
+        all_detail.append(data[i]['price'])
+        all_detail.append(data[i]['description'])
+        all_detail.append(data[i]['description'])
+        average_compound_score = analyze_reviews(data[i]['reviews'])
+        all_detail.append(average_compound_score)
+        all_detail.append(data[i]['reviews'])
+        all_detail.append(data[i]['link'])
+        all_detail.append(data[i]['image_url'])
+        all_detail.append('Flipkart')
+        all_detail.append(None)
+        all_detail.append(data[i]['average_rating'])
+        all_detail.append(data[i]['count_reviews'])
+        all_products_detail[i] = all_detail
+    return products_detail, all_products_detail
+   
+def get_flipkart_data(key):
+    data = utils_flipkart.get_data(key)
+    return data
+  
 def get_data(key):
     with st.spinner('Searching for products...'):
         params = {
@@ -49,9 +91,13 @@ def get_data(key):
         page = get_soup(params, 1)
 
         elements = get_star_elements(page)
-        
-        product_dict = {}
-        all_detail_product = {}
+        #get first 10 elements
+        elements = elements[:10]        
+        product_dict_amazon = {}
+        all_detail_product_amazon = {}
+
+        product_dict_flipkart = {}
+        all_detail_product_flipkart = {}
 
         # Create a ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -61,9 +107,49 @@ def get_data(key):
             # Wait for all futures to complete
             for future in concurrent.futures.as_completed(futures):
                 index, product_detail, all_detail = future.result()
-                product_dict[index] = product_detail
-                all_detail_product[index] = all_detail
+                product_dict_amazon[index] = product_detail
+                all_detail_product_amazon[index] = all_detail
         
+        #start flipkart indexing after amazon
+        indexy = len(product_dict_amazon)
+        flipkart_data = get_flipkart_data(key)
+        # print(flipkart_data)
+        product_detail_flipkart, all_detail_flipkart = process_element_flipkart(flipkart_data)
+
+        for i in range(len(product_detail_flipkart)):
+            product_dict_flipkart[indexy] = product_detail_flipkart[i]
+            all_detail_product_flipkart[indexy] = all_detail_flipkart[i]
+            indexy+=1
+        
+        # print(flipkart_data)
+        # print(product_dict_amazon)
+        # print(all_detail_product_amazon)
+        print(product_dict_flipkart.keys())
+        print(product_dict_amazon.keys())
+        print(len(product_dict_amazon), len(product_dict_flipkart))
+        product_dict = {}
+        all_detail_product = {}
+        #merge one amazon then one flipkart
+        iterator = 0
+        for i in range(len(product_dict_amazon)):
+            product_dict[iterator] = product_dict_amazon[i]
+            all_detail_product[iterator] = all_detail_product_amazon[i]
+            iterator +=2
+        
+        iterator = 1
+        for i in range(len(product_dict_flipkart)):
+            product_dict[iterator] = product_dict_flipkart[i+len(product_dict_amazon)]
+            all_detail_product[iterator] = all_detail_product_flipkart[i+len(product_dict_amazon)]
+            iterator +=2
+
+
+        # product_dict = {**product_dict_amazon, **product_dict_flipkart}
+        print("total", len(product_dict))
+        # all_detail_product = {**all_detail_product_amazon, **all_detail_product_flipkart}
+
+        # print(product_dict)
+        # print(all_detail_product)
+
         max_index, top_k_recommendations_dict = get_top_k_recommendations(key, product_dict)
         top_k_recommendations = top_k_recommendations_dict.keys()
         print("returned")
@@ -84,10 +170,11 @@ def get_data(key):
             st.markdown(f"### Overall sentiment: {'positive' if all_detail_product[max_index][4] > 0 else 'negative' if all_detail_product[max_index][4] < 0 else 'neutral'}")
             with st.expander("About the Product"):
                 st.write(pd.DataFrame(all_detail_product[max_index][3], columns=['About the Product']))
-            with st.expander("Show Reviews"):
+            with st.expander("Show Top Reviews"):
                 st.dataframe(pd.DataFrame(all_detail_product[max_index][5], columns=['Review']))
         except:
             st.write("No product found")
+
     
     st.markdown(f"### Top {len(top_k_recommendations)} products by Competition")
     tab_labels = [f"Product {i+1}" for i in range(len(top_k_recommendations))]
@@ -105,26 +192,58 @@ def get_data(key):
                         st.image(all_detail_product[index][7], width=300)
                         st.markdown(f'<a href="{all_detail_product[index][6]}" target="_blank">Go to product page</a>', unsafe_allow_html=True)
                     with last_co:
+                        st.markdown(f"Source: {all_detail_product[index][8]}")
                         st.markdown(f"##### {all_detail_product[index][0]}")
                         st.markdown(f"**Price:** {all_detail_product[index][1]}")
+                        if all_detail_product[index][9] == None:
+                            st.markdown(f"*Product Sales: Not Available*")
+                        else:
+                            st.markdown(f"*Product Sales: {all_detail_product[index][9]}*+ bought in the past month")
                         st.markdown(f"Weighted Combined Similarity Score(Normalized): {top_k_recommendations_dict[index]:.2f}")
+                        st.markdown(f"Average Rating on Website: {all_detail_product[index][10]}")
+                        st.markdown(f"Count of Total Reviews: {all_detail_product[index][11]}")
                         st.markdown(f"**Average sentiment score:** {all_detail_product[index][4]:.2f}")
                         st.markdown(f"**Overall sentiment:** {'positive' if all_detail_product[index][4] > 0 else 'negative' if all_detail_product[index][4] < 0 else 'neutral'}")
                     with st.expander("About the Product"):
                         st.write(pd.DataFrame(all_detail_product[index][3], columns=['About the Product']))
-                    with st.expander("Show Reviews"):
+                    with st.expander("Show Top Reviews"):
                         st.dataframe(pd.DataFrame(all_detail_product[index][5], columns=['Review']))
-    except:
-        pass
-            
+    except Exception as e:
+        print(e)
 
+    with open("all_detail_product.pkl", "wb") as f:
+        pickle.dump(all_detail_product, f)
     
-    # st.sidebar.title("Your Product")
-    # st.sidebar.markdown(f"<div style='text-align: center; padding: 10px;'><img src='{image['src']}'></div>",unsafe_allow_html=True)           
-    # st.sidebar.markdown(f"## {product_details['name']}")
-    # st.sidebar.markdown(f"### Price: {product_details['price']}")
-    # st.sidebar.markdown(f"### Average sentiment score: {average_compound_score:.2f}")
-    # st.sidebar.markdown(f"### Overall sentiment: {'positive' if average_compound_score > 0 else 'negative' if average_compound_score < 0 else 'neutral'}")
+    with open("product_dict.pkl", "wb") as f:
+        pickle.dump(product_dict, f)
+
+    param = all_detail_product[max_index][0]  # Replace with your actual parameter value
+    st.markdown(f'''
+    <a href="http://localhost:8502/?param={param}" target="_blank" style="text-decoration: none;">
+        <button style="
+            background-color: #000000; /* Black */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 50%;
+            transition-duration: 0.4s; /* Adds animation */">
+        Review Analysis
+        </button>
+    </a>
+''', unsafe_allow_html=True)
+    file = open('reviews.txt', 'w', encoding='utf-8').close()
+    with open('reviews.txt', 'w', encoding='utf-8') as f:
+        for line in all_detail_product[max_index][5]:
+            f.write(f"{line}\n")
+
+    f.close()
+
             
 
 

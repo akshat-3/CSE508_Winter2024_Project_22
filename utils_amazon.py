@@ -45,7 +45,8 @@ def scrape_data(url):
         print(response.status_code)
         soup = BeautifulSoup(response.text, 'html.parser')
         return soup
-    except:
+    except Exception as e:
+        print(e)
         return BeautifulSoup()
 
 def get_product_details(soup):
@@ -59,8 +60,42 @@ def get_product_details(soup):
         if price_element is not None:
             product_details['price'] = price_element.string.strip()
 
+        span = soup.find(id='social-proofing-faceout-title-tk_bought')
+        if span is not None:
+            text = span.text.strip()
+            text = text.split(' ')[0]
+            if '+' in text:
+                text = text.replace('+', '')
+            if ',' in text:
+                text = text.replace(',', '')
+            if 'K' in text or 'k' in text:
+                text = text.replace('K', '')
+                text = text.replace('k', '')
+                text = int(text) * 1000
+            product_details['bought'] = text
+        else:
+            product_details['bought'] = 0
+
+        rating_span = soup.find('span', {'class': 'a-icon-alt'})
+        if rating_span is not None:
+            rating = rating_span.text.strip()
+            print("RATING",rating)
+            product_details['average_rating'] = rating
+        else:
+            product_details['average_rating'] = 0
+        
+        reviews_span = soup.find(id='acrCustomerReviewText')
+        reviews = reviews_span.text.strip()
+        reviews = reviews.split(' ')[0]
+        reviews = int(reviews.replace(',', ''))
+        product_details['total_reviews'] = reviews
         return product_details
-    except:
+        # product_details['bought'] = 0
+        # product_details['average_rating'] = 0
+        # product_details['total_reviews'] = 0
+        # return product_details
+    except Exception as e:
+        print(e)
         return product_details
     
 # 3. Scrape reviews
@@ -166,7 +201,8 @@ def get_soup(params, page_number):
         }
         response = requests.get('https://www.amazon.in/s', params=params, cookies=cookies, headers=headers)
         return BeautifulSoup(response.text, 'html.parser')
-    except:
+    except Exception as e:
+        print(e)
         return BeautifulSoup()
     
 def get_star_elements(soup):

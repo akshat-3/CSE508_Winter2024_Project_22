@@ -111,7 +111,7 @@ def get_cosine_similarity(vec1, vec2):
    return out
 
 
-def get_top_k_recommendations(input_text, product_dict_input, k = 3):
+def get_top_k_recommendations(input_text, product_dict_input, k = 10):
    product_dict = copy.deepcopy(product_dict_input)
    invalid = []
    for i in product_dict:
